@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "meta": {"title": "Broken deck for testing"},
+  "slides": [
+    {
+      "id": "not-a-title-slide",
+      "layout": "title_content",
+      "title": "I should be the title slide but I'm not",
+      "blocks": [{"kind": "text", "content": "First slide should use layout=title."}]
+    },
+    {
+      "id": "too-narrow-2col",
+      "layout": "two_column",
+      "title": "Two column with only one block",
+      "blocks": [{"kind": "text", "content": "There is only me in this layout."}]
+    },
+    {
+      "id": "chart-overload",
+      "layout": "title_content",
+      "title": "Too many charts",
+      "blocks": [
+        {"kind": "chart", "chart_type": "bar", "labels": ["a", "b"], "series": [{"name": "x", "values": [1, 2]}]},
+        {"kind": "chart", "chart_type": "line", "labels": ["a", "b"], "series": [{"name": "y", "values": [3, 4]}]}
+      ]
+    }
+  ]
+}

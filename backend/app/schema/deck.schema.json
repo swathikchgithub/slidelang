@@ -1,0 +1,407 @@
+{
+  "$defs": {
+    "BulletsBlock": {
+      "properties": {
+        "kind": {
+          "const": "bullets",
+          "default": "bullets",
+          "title": "Kind",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "BulletsBlock",
+      "type": "object"
+    },
+    "ChartBlock": {
+      "description": "Charts use a tiny declarative spec, NOT raw Chart.js config.",
+      "properties": {
+        "kind": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Kind",
+          "type": "string"
+        },
+        "chart_type": {
+          "enum": [
+            "bar",
+            "line",
+            "pie"
+          ],
+          "title": "Chart Type",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Labels",
+          "type": "array"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/ChartSeries"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "Series",
+          "type": "array"
+        }
+      },
+      "required": [
+        "chart_type",
+        "labels",
+        "series"
+      ],
+      "title": "ChartBlock",
+      "type": "object"
+    },
+    "ChartSeries": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "values"
+      ],
+      "title": "ChartSeries",
+      "type": "object"
+    },
+    "CodeBlock": {
+      "properties": {
+        "kind": {
+          "const": "code",
+          "default": "code",
+          "title": "Kind",
+          "type": "string"
+        },
+        "language": {
+          "default": "text",
+          "title": "Language",
+          "type": "string"
+        },
+        "content": {
+          "maxLength": 4000,
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "CodeBlock",
+      "type": "object"
+    },
+    "DeckMeta": {
+      "properties": {
+        "title": {
+          "maxLength": 200,
+          "title": "Title",
+          "type": "string"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "theme": {
+          "$ref": "#/$defs/Theme",
+          "default": "black"
+        },
+        "transition": {
+          "$ref": "#/$defs/Transition",
+          "default": "fade"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "DeckMeta",
+      "type": "object"
+    },
+    "ImageBlock": {
+      "properties": {
+        "kind": {
+          "const": "image",
+          "default": "image",
+          "title": "Kind",
+          "type": "string"
+        },
+        "src": {
+          "title": "Src",
+          "type": "string"
+        },
+        "alt": {
+          "default": "",
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        }
+      },
+      "required": [
+        "src"
+      ],
+      "title": "ImageBlock",
+      "type": "object"
+    },
+    "Layout": {
+      "description": "High-level layouts. Compiler picks CSS grid templates per value.",
+      "enum": [
+        "title",
+        "title_content",
+        "two_column",
+        "full_bleed",
+        "quote"
+      ],
+      "title": "Layout",
+      "type": "string"
+    },
+    "MathBlock": {
+      "description": "LaTeX rendered via KaTeX in the browser.",
+      "properties": {
+        "kind": {
+          "const": "math",
+          "default": "math",
+          "title": "Kind",
+          "type": "string"
+        },
+        "latex": {
+          "maxLength": 500,
+          "title": "Latex",
+          "type": "string"
+        },
+        "display": {
+          "default": true,
+          "title": "Display",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "latex"
+      ],
+      "title": "MathBlock",
+      "type": "object"
+    },
+    "Slide": {
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9-]{1,40}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layout": {
+          "$ref": "#/$defs/Layout",
+          "default": "title_content"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "blocks": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "bullets": "#/$defs/BulletsBlock",
+                "chart": "#/$defs/ChartBlock",
+                "code": "#/$defs/CodeBlock",
+                "image": "#/$defs/ImageBlock",
+                "math": "#/$defs/MathBlock",
+                "text": "#/$defs/TextBlock"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextBlock"
+              },
+              {
+                "$ref": "#/$defs/BulletsBlock"
+              },
+              {
+                "$ref": "#/$defs/ImageBlock"
+              },
+              {
+                "$ref": "#/$defs/MathBlock"
+              },
+              {
+                "$ref": "#/$defs/CodeBlock"
+              },
+              {
+                "$ref": "#/$defs/ChartBlock"
+              }
+            ]
+          },
+          "maxItems": 6,
+          "title": "Blocks",
+          "type": "array"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Slide",
+      "type": "object"
+    },
+    "TextBlock": {
+      "properties": {
+        "kind": {
+          "const": "text",
+          "default": "text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "content": {
+          "maxLength": 2000,
+          "title": "Content",
+          "type": "string"
+        },
+        "emphasis": {
+          "default": "normal",
+          "enum": [
+            "normal",
+            "lead",
+            "caption"
+          ],
+          "title": "Emphasis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "TextBlock",
+      "type": "object"
+    },
+    "Theme": {
+      "enum": [
+        "black",
+        "white",
+        "league",
+        "moon"
+      ],
+      "title": "Theme",
+      "type": "string"
+    },
+    "Transition": {
+      "enum": [
+        "none",
+        "fade",
+        "slide",
+        "convex"
+      ],
+      "title": "Transition",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Version",
+      "type": "string"
+    },
+    "meta": {
+      "$ref": "#/$defs/DeckMeta"
+    },
+    "slides": {
+      "items": {
+        "$ref": "#/$defs/Slide"
+      },
+      "maxItems": 40,
+      "minItems": 1,
+      "title": "Slides",
+      "type": "array"
+    }
+  },
+  "required": [
+    "meta",
+    "slides"
+  ],
+  "title": "Deck",
+  "type": "object"
+}
