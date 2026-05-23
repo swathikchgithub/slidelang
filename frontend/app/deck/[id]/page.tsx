@@ -16,13 +16,31 @@ export default function DeckPage() {
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  const [timing, setTiming] = useState<{
+    generationMs: number;
+    repaired: boolean;
+    attempts: number;
+    warnings: number;
+  } | null>(null);
+
+
+useEffect(() => {
     fetchDeck(deckId)
       .then((res) => {
         setJsonText(JSON.stringify(res.deck, null, 2));
         setIframeUrl(compileUrl(deckId));
       })
       .catch((e) => setError(e.message));
+
+    // Read timing data stashed by the landing page
+    const stashed = sessionStorage.getItem(`slidelang:timing:${deckId}`);
+    if (stashed) {
+      try {
+        setTiming(JSON.parse(stashed));
+      } catch {
+        /* ignore */
+      }
+    }
   }, [deckId]);
 
   const onChange = useCallback(
@@ -51,9 +69,15 @@ export default function DeckPage() {
   return (
     <main className="h-screen flex flex-col">
       <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950">
-        <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4">
           <Link href="/" className="text-sm text-zinc-400 hover:text-white">← New deck</Link>
           <span className="text-xs text-zinc-500">deck: {deckId}</span>
+          {timing && (
+            <span className="text-xs text-emerald-400 font-mono" title={`${timing.attempts} attempt(s), ${timing.warnings} warning(s)`}>
+              ⚡ {(timing.generationMs / 1000).toFixed(1)}s
+              {timing.repaired && <span className="ml-1 text-amber-400">repaired</span>}
+            </span>
+          )}
           {saving && <span className="text-xs text-zinc-500">saving…</span>}
         </div>
         <Link

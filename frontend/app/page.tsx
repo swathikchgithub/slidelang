@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generateDeck } from "@/lib/api";
 
 const EXAMPLES = [
@@ -14,14 +14,46 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef<number>(0);
+  const tickRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+
+  // Tick the timer while loading
+  useEffect(() => {
+    if (loading) {
+      startRef.current = Date.now();
+      setElapsed(0);
+      tickRef.current = setInterval(() => {
+        setElapsed((Date.now() - startRef.current) / 1000);
+      }, 100);
+    } else if (tickRef.current) {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
+    };
+  }, [loading]);
 
   async function handleSubmit() {
     if (!prompt.trim() || loading) return;
     setLoading(true);
     setError(null);
+    const t0 = Date.now();
     try {
       const res = await generateDeck(prompt);
+      const elapsedMs = Date.now() - t0;
+      // Stash timing in sessionStorage so the editor page can show it
+      sessionStorage.setItem(
+        `slidelang:timing:${res.deck_id}`,
+        JSON.stringify({
+          generationMs: elapsedMs,
+          repaired: res.repaired,
+          attempts: res.attempts,
+          warnings: res.warnings.length,
+        }),
+      );
       router.push(`/deck/${res.deck_id}`);
     } catch (e: any) {
       setError(e.message || "generation failed");
@@ -50,7 +82,7 @@ export default function Home() {
           disabled={loading || !prompt.trim()}
           className="mt-4 w-full py-3 rounded-lg bg-white text-black font-medium hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Generating…" : "Generate deck"}
+          {loading ? `Generating… ${elapsed.toFixed(1)}s` : "Generate deck"}
         </button>
 
         {error && (
