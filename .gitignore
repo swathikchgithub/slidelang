@@ -41,3 +41,12 @@ Thumbs.db
 # Slidelang
 /tmp/
 *.log
+# Playwright
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/playwright/.cache/
+
+# Playwright
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/playwright/.cache/
