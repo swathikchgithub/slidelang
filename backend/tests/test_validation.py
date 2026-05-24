@@ -58,6 +58,66 @@ def test_full_bleed_with_multiple_blocks_fires_rule():
     _, errors = parse_and_validate(raw)
     assert any(e.code == "FULL_BLEED_ONE_BLOCK" for e in errors)
 
+def test_overflow_risk_fires_on_long_text_plus_math():
+    """The bug we found in the live demo: long text block stacked above a math
+    block overflows the reveal.js canvas. Validation should catch this."""
+    raw = {
+        "version": "1.0",
+        "meta": {"title": "T"},
+        "slides": [
+            {"id": "title", "layout": "title", "title": "T"},
+            {
+                "id": "overflowing",
+                "layout": "title_content",
+                "title": "What is a vector embedding?",
+                "blocks": [
+                    {
+                        "kind": "text",
+                        "content": (
+                            "Machine learning models encode semantic meaning "
+                            "as dense numerical arrays called embeddings. "
+                            "Similar concepts cluster together in this "
+                            "high-dimensional space, which lets us compute "
+                            "similarity by measuring distances between vectors."
+                        ),
+                    },
+                    {
+                        "kind": "math",
+                        "latex": (
+                            r"\vec{v} \in \mathbb{R}^d, \quad "
+                            r"\text{similarity}(\vec{a}, \vec{b}) = "
+                            r"\frac{\vec{a} \cdot \vec{b}}{||\vec{a}|| \cdot ||\vec{b}||}"
+                        ),
+                    },
+                ],
+            },
+        ],
+    }
+    _, errors = parse_and_validate(raw)
+    assert any(e.code == "SLIDE_OVERFLOW_RISK" for e in errors)
+
+
+def test_overflow_risk_does_not_fire_on_compact_slide():
+    """Short text plus a math block is fine — should NOT fire."""
+    raw = {
+        "version": "1.0",
+        "meta": {"title": "T"},
+        "slides": [
+            {"id": "title", "layout": "title", "title": "T"},
+            {
+                "id": "compact",
+                "layout": "title_content",
+                "title": "Pythagorean theorem",
+                "blocks": [
+                    {"kind": "text", "content": "For a right triangle:"},
+                    {"kind": "math", "latex": "a^2 + b^2 = c^2"},
+                ],
+            },
+        ],
+    }
+    _, errors = parse_and_validate(raw)
+    assert not any(e.code == "SLIDE_OVERFLOW_RISK" for e in errors)
+    
 
 @pytest.mark.asyncio
 async def test_repair_loop_converges():
