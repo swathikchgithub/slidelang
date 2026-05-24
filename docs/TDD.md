@@ -86,13 +86,30 @@ Next.js 14 App Router. Three routes:
 
 Monaco gets the JSON Schema for autocomplete and inline validation. Preview iframe sources `/api/compile/{id}`; we don't compile in the browser (single source of truth). PATCH debounced at ~600ms.
 
+
 ## Testing
 
-- `tests/test_schema.py` — round-tripping and validators
-- `tests/test_compiler.py` — determinism, escaping, all layouts
-- `tests/test_validation.py` — every rule + repair loop convergence
+**Backend — pytest, 20 tests, all critical paths covered.**
 
-AI integration is not unit-tested; manual smoke prompts before deploy.
+- `tests/test_schema.py` — round-tripping and validators (7 tests)
+- `tests/test_compiler.py` — determinism, XSS escaping, all five layouts, chart payload escaping, CDN asset presence (7 tests)
+- `tests/test_validation.py` — every semantic rule + repair loop convergence + repair exhaustion (6 tests)
+
+AI integration is intentionally not unit-tested. Reasoning: it's slow, network-dependent, costs real money per run, and tests of "did Claude produce reasonable output" are subjective and flaky. The contract between Claude and our pipeline is `dict → Deck.model_validate`; everything downstream of that is fully tested. We catch Claude regressions via manual smoke prompts before deploy.
+
+**Frontend — Playwright, 3 smoke tests, gated in CI.**
+
+- `e2e/smoke.spec.ts` — landing page renders, generation redirects to editor with timer badge, present mode renders slides via reveal.js
+
+CI runs E2E against the live Vercel deployment on every push to `main` and on PRs (see `.github/workflows/e2e.yml`).
+
+**Coverage philosophy:** unit-test the engineering (schema, compiler, validation), smoke-test the integration (the user-facing critical path), defer comprehensive frontend coverage to v1. The v0 frontend is mostly orchestration over the heavily-tested backend; the marginal value of e.g. component tests for Monaco interactions is low at v0 scale. The CLAUDE.md §12 testing posture documents this explicitly.
+
+**Deferred to v1 (explicit roadmap items, not oversights):**
+- Comprehensive frontend e2e (edit flow, error states, mobile viewports)
+- Visual regression via Playwright `toHaveScreenshot()`
+- Cross-browser (Firefox/Webkit) — chromium-only in v0
+- Backend API contract tests via Playwright (currently covered by pytest at the function level)
 
 ## Deployment
 
