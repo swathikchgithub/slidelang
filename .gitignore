@@ -50,3 +50,7 @@ Thumbs.db
 /frontend/test-results/
 /frontend/playwright-report/
 /frontend/playwright/.cache/
+
+# Local scratch files
+backend/test*
+backend/*.scratch

@@ -68,7 +68,7 @@ useEffect(() => {
 
   return (
     <main className="h-screen flex flex-col">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950">
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-zinc-800 bg-zinc-950">
     <div className="flex items-center gap-4">
           <Link href="/" className="text-sm text-zinc-400 hover:text-white">← New deck</Link>
           <span className="text-xs text-zinc-500">deck: {deckId}</span>

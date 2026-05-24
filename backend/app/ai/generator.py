@@ -39,16 +39,26 @@ async def repair_deck(broken: dict, errors: list) -> dict:
     )
     return _extract_json(msg.content[0].text)
 
-
-_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
+_FENCE_OPEN_RE = re.compile(r"^```(?:json)?\s*\n?", re.IGNORECASE)
+_FENCE_CLOSE_RE = re.compile(r"\n?```\s*$")
 
 
 def _extract_json(text: str) -> dict:
-    """Defensive: strip markdown fences if Claude wraps output despite instructions."""
+    """Defensive: strip markdown fences (even truncated ones) before JSON parsing.
+
+    Handles three cases:
+    1. Complete fence: ```json\n{...}\n```
+    2. Opening fence only (truncated mid-response): ```json\n{...
+    3. No fence at all: {...}
+
+    Raises JSONDecodeError if parsing still fails after stripping.
+    """
     text = text.strip()
-    fence = _FENCE_RE.match(text)
-    if fence:
-        text = fence.group(1)
+    # Strip opening fence if present
+    text = _FENCE_OPEN_RE.sub("", text)
+    # Strip closing fence if present (may be absent on truncation)
+    text = _FENCE_CLOSE_RE.sub("", text)
+    text = text.strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
