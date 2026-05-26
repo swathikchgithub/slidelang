@@ -24,7 +24,8 @@
   .sl-caption { font-size: 0.7em; opacity: 0.7; }
   .sl-quote { font-size: 1.2em; font-style: italic; }
   .sl-subtitle { font-size: 1.2em; opacity: 0.8; }
-  .sl-math { margin: 1rem 0; }
+  .sl-math { margin: 1rem 0; max-width: 100%; overflow: hidden; }
+  .sl-math .katex-display { overflow-x: hidden; }
 </style>
 </head>
 <body>
@@ -40,12 +41,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
 <script>
-  Reveal.initialize({
-    hash: true,
-    transition: '{{ meta.transition.value }}',
-    plugins: [ RevealNotes ],
-  });
-
   function renderMath() {
     if (window.renderMathInElement) {
       renderMathInElement(document.body, {
@@ -56,8 +51,47 @@
         throwOnError: false,
       });
     }
+    scaleMathBlocks();
   }
+
+  /**
+   * Scale down any math block whose rendered KaTeX content is wider than
+   * its container. Uses CSS transform so the formula stays readable rather
+   * than being clipped or scrolled.
+   */
+  function scaleMathBlocks() {
+    document.querySelectorAll('.sl-math').forEach(function(el) {
+      // KaTeX display mode wraps in .katex-display; inline mode just has .katex
+      var displayEl = el.querySelector('.katex-display');
+      var target = displayEl || el.querySelector('.katex');
+      if (!target) return;
+
+      // Reset previous scaling before measuring
+      target.style.transform = '';
+      target.style.transformOrigin = '';
+
+      var containerW = el.clientWidth;
+      var contentW = target.scrollWidth;
+      if (contentW > containerW && containerW > 0) {
+        var scale = (containerW / contentW) * 0.97; // 3% padding so it doesn't touch the edge
+        target.style.transform = 'scale(' + scale + ')';
+        target.style.transformOrigin = 'center top';
+      }
+    });
+  }
+
   renderMath();
+
+  Reveal.initialize({
+    hash: true,
+    transition: '{{ meta.transition.value }}',
+    plugins: [ RevealNotes ],
+  });
+
+  // Re-scale after Reveal finishes its own layout (container sizes may shift)
+  Reveal.on('ready', scaleMathBlocks);
+  Reveal.on('slidechanged', scaleMathBlocks);
+  Reveal.on('resize', scaleMathBlocks);
 
   document.querySelectorAll('canvas[data-chart-config]').forEach(function(canvas) {
     try {
