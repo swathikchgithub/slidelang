@@ -80,6 +80,45 @@
     });
   }
 
+  /**
+   * Scale down any slide whose content is taller or wider than the Reveal
+   * canvas. Targets the outermost sl-layout-* div inside each section so
+   * the slide title and body shrink together as a unit.
+   *
+   * Called after Reveal finishes layout so section.clientHeight is reliable.
+   */
+  function scaleSlideContent() {
+    document.querySelectorAll('.reveal .slides > section').forEach(function(section) {
+      var content = section.querySelector('[class*="sl-layout-"]');
+      if (!content) return;
+
+      // Reset before measuring so we read natural (unscaled) dimensions
+      content.style.transform = '';
+      content.style.transformOrigin = '';
+
+      var availH = section.clientHeight;
+      var availW = section.clientWidth;
+      if (availH === 0 || availW === 0) return; // not yet laid out
+
+      var contentH = content.scrollHeight;
+      var contentW = content.scrollWidth;
+
+      var scaleH = contentH > availH ? availH / contentH : 1;
+      var scaleW = contentW > availW ? availW / contentW : 1;
+      var scale = Math.min(scaleH, scaleW) * 0.96; // 4% breathing room
+
+      if (scale < 1) {
+        content.style.transform = 'scale(' + scale + ')';
+        content.style.transformOrigin = 'top center';
+      }
+    });
+  }
+
+  function scaleAll() {
+    scaleMathBlocks();
+    scaleSlideContent();
+  }
+
   renderMath();
 
   Reveal.initialize({
@@ -88,10 +127,10 @@
     plugins: [ RevealNotes ],
   });
 
-  // Re-scale after Reveal finishes its own layout (container sizes may shift)
-  Reveal.on('ready', scaleMathBlocks);
-  Reveal.on('slidechanged', scaleMathBlocks);
-  Reveal.on('resize', scaleMathBlocks);
+  // Run after Reveal finishes layout and on every navigation / resize
+  Reveal.on('ready', scaleAll);
+  Reveal.on('slidechanged', scaleAll);
+  Reveal.on('resize', scaleAll);
 
   document.querySelectorAll('canvas[data-chart-config]').forEach(function(canvas) {
     try {
