@@ -1,10 +1,25 @@
 "use client";
 
 import { Editor } from "@monaco-editor/react";
+import type { editor as MonacoEditor } from "monaco-editor";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compileUrl, fetchDeck, updateDeck } from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface SlideEntry {
+  id: string;
+  title?: string;
+  layout?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function DeckPage() {
   const params = useParams<{ id: string }>();
@@ -15,8 +30,7 @@ export default function DeckPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [showEditor, setShowEditor] = useState(true);
   const [timing, setTiming] = useState<{
     generationMs: number;
     repaired: boolean;
@@ -24,6 +38,12 @@ export default function DeckPage() {
     warnings: number;
   } | null>(null);
 
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Initial load
+  // ---------------------------------------------------------------------------
 
   useEffect(() => {
     setLoading(true);
@@ -35,18 +55,51 @@ export default function DeckPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
 
-    // Read timing data stashed by the landing page, then clean it up.
     const key = `slidelang:timing:${deckId}`;
     const stashed = sessionStorage.getItem(key);
     if (stashed) {
-      try {
-        setTiming(JSON.parse(stashed));
-      } catch {
-        /* ignore malformed data */
-      }
+      try { setTiming(JSON.parse(stashed)); } catch { /* ignore */ }
       sessionStorage.removeItem(key);
     }
   }, [deckId]);
+
+  // ---------------------------------------------------------------------------
+  // Derived slide list from the editor JSON (best-effort, no throw)
+  // ---------------------------------------------------------------------------
+
+  const slides = useMemo<SlideEntry[]>(() => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      return Array.isArray(parsed?.slides) ? parsed.slides : [];
+    } catch {
+      return [];
+    }
+  }, [jsonText]);
+
+  // ---------------------------------------------------------------------------
+  // Jump Monaco editor to a specific slide by id
+  // ---------------------------------------------------------------------------
+
+  const jumpToSlide = useCallback((slideId: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const model = editor.getModel();
+    if (!model) return;
+    const text = model.getValue();
+    const needle = `"id": "${slideId}"`;
+    const idx = text.indexOf(needle);
+    if (idx === -1) return;
+    const pos = model.getPositionAt(idx);
+    editor.revealLineInCenter(pos.lineNumber);
+    editor.setPosition(pos);
+    editor.focus();
+    // Show editor if it was hidden
+    setShowEditor(true);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Auto-save on edit (debounced 600ms)
+  // ---------------------------------------------------------------------------
 
   const onChange = useCallback(
     (value: string | undefined) => {
@@ -78,57 +131,111 @@ export default function DeckPage() {
     [deckId],
   );
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
   return (
     <main className="h-screen flex flex-col">
+      {/* ---- Header ---- */}
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-zinc-800 bg-zinc-950">
         <div className="flex items-center gap-4">
           <Link href="/" className="text-sm text-zinc-400 hover:text-white">← New deck</Link>
-          <span className="text-xs text-zinc-500">deck: {deckId}</span>
+          <span className="text-xs text-zinc-500 font-mono">{deckId}</span>
           {timing && (
-            <span className="text-xs text-emerald-400 font-mono" title={`${timing.attempts} attempt(s), ${timing.warnings} warning(s)`}>
+            <span
+              className="text-xs text-emerald-400 font-mono"
+              title={`${timing.attempts} attempt(s), ${timing.warnings} warning(s)`}
+            >
               ⚡ {(timing.generationMs / 1000).toFixed(1)}s
               {timing.repaired && <span className="ml-1 text-amber-400">repaired</span>}
             </span>
           )}
           {saving && <span className="text-xs text-zinc-500">saving…</span>}
         </div>
-        <Link
-          href={`/deck/${deckId}/present`}
-          className="px-3 py-1.5 rounded bg-white text-black text-sm font-medium hover:bg-zinc-200"
-        >
-          Present
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowEditor((v) => !v)}
+            className="px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 text-sm hover:border-zinc-500 hover:text-white transition-colors"
+          >
+            {showEditor ? "Preview only" : "Show editor"}
+          </button>
+          <Link
+            href={`/deck/${deckId}/present`}
+            className="px-3 py-1.5 rounded bg-white text-black text-sm font-medium hover:bg-zinc-200"
+          >
+            Present
+          </Link>
+        </div>
       </header>
 
+      {/* ---- Error banner ---- */}
       {error && (
         <div className="px-4 py-2 bg-red-950 border-b border-red-900 text-red-200 text-sm">
           {error}
         </div>
       )}
 
+      {/* ---- Loading state ---- */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
           Loading deck…
         </div>
       ) : (
-        <div className="flex-1 grid grid-cols-2 min-h-0">
-          <div className="border-r border-zinc-800 min-h-0">
-            <Editor
-              height="100%"
-              defaultLanguage="json"
-              theme="vs-dark"
-              value={jsonText}
-              onChange={onChange}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                tabSize: 2,
-                wordWrap: "on",
-                scrollBeyondLastLine: false,
-              }}
-            />
-          </div>
-          <div className="bg-black min-h-0">
+        <div className="flex-1 flex min-h-0">
+
+          {/* ---- Slide list sidebar ---- */}
+          <aside className="w-44 flex-shrink-0 border-r border-zinc-800 overflow-y-auto bg-zinc-950">
+            <div className="px-2 py-2 text-[10px] uppercase tracking-widest text-zinc-600 font-semibold">
+              Slides
+            </div>
+            {slides.length === 0 ? (
+              <p className="px-3 py-2 text-[10px] text-zinc-700">No slides yet</p>
+            ) : (
+              slides.map((slide, i) => (
+                <button
+                  key={slide.id}
+                  onClick={() => jumpToSlide(slide.id)}
+                  title={`Jump to slide "${slide.id}" in editor`}
+                  className="w-full text-left px-3 py-2 flex items-start gap-2 hover:bg-zinc-800 group transition-colors"
+                >
+                  <span className="text-[10px] font-mono text-zinc-600 mt-0.5 w-4 flex-shrink-0 text-right">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs text-zinc-300 group-hover:text-white truncate leading-snug">
+                      {slide.title || slide.id}
+                    </p>
+                    <p className="text-[10px] text-zinc-600 truncate">{slide.layout ?? ""}</p>
+                  </div>
+                </button>
+              ))
+            )}
+          </aside>
+
+          {/* ---- Monaco editor (toggleable) ---- */}
+          {showEditor && (
+            <div className="flex-1 border-r border-zinc-800 min-h-0 min-w-0">
+              <Editor
+                height="100%"
+                defaultLanguage="json"
+                theme="vs-dark"
+                value={jsonText}
+                onChange={onChange}
+                onMount={(editor) => { editorRef.current = editor; }}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  tabSize: 2,
+                  wordWrap: "on",
+                  scrollBeyondLastLine: false,
+                }}
+              />
+            </div>
+          )}
+
+          {/* ---- Preview iframe ---- */}
+          <div className="flex-1 bg-black min-h-0 min-w-0">
             {iframeUrl && (
               <iframe
                 key={iframeUrl}
