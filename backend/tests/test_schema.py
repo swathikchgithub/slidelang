@@ -10,6 +10,7 @@ from app.schema.deck import (
     ChartBlock,
     ChartSeries,
     Deck,
+    MathBlock,
     Slide,
     TextBlock,
 )
@@ -65,6 +66,22 @@ def test_slide_id_pattern():
         Slide(id="Has Spaces")
     with pytest.raises(ValidationError):
         Slide(id="UPPERCASE")
+
+
+def test_mathblock_accepts_valid_latex():
+    block = MathBlock(latex=r"\theta_{t+1} = \theta_t - \eta \nabla L(\theta_t)")
+    assert block.display is True
+
+
+def test_mathblock_rejects_html_angle_brackets():
+    with pytest.raises(ValidationError) as exc:
+        MathBlock(latex=r"\text{<script>alert(1)</script>}")
+    assert "latex must not contain" in str(exc.value)
+
+
+def test_mathblock_rejects_gt_sign():
+    with pytest.raises(ValidationError):
+        MathBlock(latex=r"a > b")
 
 
 def test_discriminator_dispatches_correctly():

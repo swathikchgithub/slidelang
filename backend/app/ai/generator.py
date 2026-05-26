@@ -13,7 +13,8 @@ from app.config import settings
 
 log = logging.getLogger(__name__)
 
-MAX_TOKENS = 8000
+MAX_TOKENS = 8000         # initial generation
+MAX_REPAIR_TOKENS = 12000  # repair includes broken deck + errors in the prompt
 
 
 async def generate_deck(user_prompt: str) -> dict:
@@ -33,7 +34,7 @@ async def repair_deck(broken: dict, errors: list) -> dict:
     client = get_client()
     msg = await client.messages.create(
         model=settings.CLAUDE_MODEL,
-        max_tokens=MAX_TOKENS,
+        max_tokens=MAX_REPAIR_TOKENS,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": build_repair_message(broken, errors)}],
     )

@@ -14,6 +14,7 @@ export default function DeckPage() {
   const [iframeUrl, setIframeUrl] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [timing, setTiming] = useState<{
@@ -24,22 +25,26 @@ export default function DeckPage() {
   } | null>(null);
 
 
-useEffect(() => {
+  useEffect(() => {
+    setLoading(true);
     fetchDeck(deckId)
       .then((res) => {
         setJsonText(JSON.stringify(res.deck, null, 2));
         setIframeUrl(compileUrl(deckId));
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
 
-    // Read timing data stashed by the landing page
-    const stashed = sessionStorage.getItem(`slidelang:timing:${deckId}`);
+    // Read timing data stashed by the landing page, then clean it up.
+    const key = `slidelang:timing:${deckId}`;
+    const stashed = sessionStorage.getItem(key);
     if (stashed) {
       try {
         setTiming(JSON.parse(stashed));
       } catch {
-        /* ignore */
+        /* ignore malformed data */
       }
+      sessionStorage.removeItem(key);
     }
   }, [deckId]);
 
@@ -51,13 +56,20 @@ useEffect(() => {
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(async () => {
+        let parsed: unknown;
         try {
-          const parsed = JSON.parse(value);
+          parsed = JSON.parse(value);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          setError(`JSON syntax error: ${msg}`);
+          return;
+        }
+        try {
           setSaving(true);
-          await updateDeck(deckId, parsed);
+          await updateDeck(deckId, parsed as Record<string, unknown>);
           setIframeUrl(compileUrl(deckId));
-        } catch (e: any) {
-          setError(e.message);
+        } catch (e: unknown) {
+          setError(e instanceof Error ? e.message : String(e));
         } finally {
           setSaving(false);
         }
@@ -69,7 +81,7 @@ useEffect(() => {
   return (
     <main className="h-screen flex flex-col">
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-zinc-800 bg-zinc-950">
-    <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <Link href="/" className="text-sm text-zinc-400 hover:text-white">← New deck</Link>
           <span className="text-xs text-zinc-500">deck: {deckId}</span>
           {timing && (
@@ -94,34 +106,40 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="flex-1 grid grid-cols-2 min-h-0">
-        <div className="border-r border-zinc-800 min-h-0">
-          <Editor
-            height="100%"
-            defaultLanguage="json"
-            theme="vs-dark"
-            value={jsonText}
-            onChange={onChange}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 13,
-              tabSize: 2,
-              wordWrap: "on",
-              scrollBeyondLastLine: false,
-            }}
-          />
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+          Loading deck…
         </div>
-        <div className="bg-black min-h-0">
-          {iframeUrl && (
-            <iframe
-              key={iframeUrl}
-              src={iframeUrl}
-              className="w-full h-full border-0"
-              title="deck preview"
+      ) : (
+        <div className="flex-1 grid grid-cols-2 min-h-0">
+          <div className="border-r border-zinc-800 min-h-0">
+            <Editor
+              height="100%"
+              defaultLanguage="json"
+              theme="vs-dark"
+              value={jsonText}
+              onChange={onChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                tabSize: 2,
+                wordWrap: "on",
+                scrollBeyondLastLine: false,
+              }}
             />
-          )}
+          </div>
+          <div className="bg-black min-h-0">
+            {iframeUrl && (
+              <iframe
+                key={iframeUrl}
+                src={iframeUrl}
+                className="w-full h-full border-0"
+                title="deck preview"
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }

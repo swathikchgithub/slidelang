@@ -74,6 +74,13 @@ class MathBlock(BaseModel):
     latex: str = Field(..., max_length=500)
     display: bool = True
 
+    @field_validator("latex")
+    @classmethod
+    def no_html_in_latex(cls, v: str) -> str:
+        if "<" in v or ">" in v:
+            raise ValueError("latex must not contain '<' or '>' — use proper LaTeX commands")
+        return v
+
 
 class CodeBlock(BaseModel):
     kind: Literal["code"] = "code"

@@ -1,9 +1,11 @@
 """POST /api/generate — prompt → validated deck."""
 import json
 import logging
+import time
 import uuid
+from collections import defaultdict, deque
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.ai.generator import generate_deck, repair_deck
@@ -13,6 +15,22 @@ from app.validation.pipeline import validate_with_repair
 log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# --- In-memory sliding-window rate limiter -----------------------------------
+_RATE_LIMIT_RPM = 10  # requests per minute per client IP
+_rate_buckets: dict[str, deque] = defaultdict(deque)
+
+
+def _is_rate_limited(client_ip: str) -> bool:
+    now = time.monotonic()
+    window_start = now - 60.0
+    bucket = _rate_buckets[client_ip]
+    while bucket and bucket[0] < window_start:
+        bucket.popleft()
+    if len(bucket) >= _RATE_LIMIT_RPM:
+        return True
+    bucket.append(now)
+    return False
 
 
 class GenerateRequest(BaseModel):
@@ -32,7 +50,17 @@ class GenerateResponse(BaseModel):
 
 
 @router.post("/generate", response_model=GenerateResponse)
-async def generate(req: GenerateRequest):
+async def generate(req: GenerateRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(client_ip):
+        raise HTTPException(
+            429,
+            detail={
+                "message": "Rate limit exceeded (10 requests/min). Please wait before trying again.",
+                "error_type": "rate_limited",
+            },
+        )
+
     if not req.prompt.strip():
         raise HTTPException(400, "prompt cannot be empty")
     if len(req.prompt) > 1000:
@@ -99,7 +127,7 @@ async def generate(req: GenerateRequest):
     # --- Persist and respond ---------------------------------------------
     deck_dict = result.deck.model_dump(mode="json")
     deck_id = str(uuid.uuid4())[:8]
-    save_deck(deck_id, deck_dict)
+    await save_deck(deck_id, deck_dict)
 
     return GenerateResponse(
         deck_id=deck_id,
