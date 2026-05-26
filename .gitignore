@@ -52,5 +52,7 @@ Thumbs.db
 /frontend/playwright/.cache/
 
 # Local scratch files
-backend/test*
 backend/*.scratch
+backend/test.py
+backend/test_*.py
+backend/test2
