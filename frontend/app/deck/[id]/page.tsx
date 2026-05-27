@@ -53,7 +53,15 @@ export default function DeckPage() {
         setJsonText(JSON.stringify(res.deck, null, 2));
         setIframeUrl(compileUrl(deckId));
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        const msg = e.message ?? "";
+        // Surface a clear message for expired in-memory decks
+        setError(
+          msg.includes("404") || msg.includes("not found")
+            ? "This deck no longer exists — the server may have restarted. Generate a new one from the home page."
+            : msg,
+        );
+      })
       .finally(() => setLoading(false));
 
     const key = `slidelang:timing:${deckId}`;

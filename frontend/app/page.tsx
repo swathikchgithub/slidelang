@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { generateDeck } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 // ---------------------------------------------------------------------------
 // Example prompts organised by category
 // ---------------------------------------------------------------------------
@@ -92,9 +94,32 @@ export default function Home() {
   const tickRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
-  // Load recent decks after mount (localStorage unavailable on server)
+  // Load recent decks, then probe each one and prune any that no longer exist
   useEffect(() => {
-    setRecent(loadRecent());
+    const stored = loadRecent();
+    if (stored.length === 0) return;
+
+    // Show immediately so the page doesn't flash
+    setRecent(stored);
+
+    // Probe all decks in parallel — remove 404s from display + localStorage
+    Promise.all(
+      stored.map(async (d) => {
+        try {
+          const res = await fetch(`${API_URL}/api/decks/${d.deck_id}`);
+          return res.ok ? d : null;
+        } catch {
+          // Network error (server down) — keep the entry, don't prune
+          return d;
+        }
+      }),
+    ).then((results) => {
+      const valid = results.filter(Boolean) as RecentDeck[];
+      if (valid.length !== stored.length) {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(valid));
+        setRecent(valid);
+      }
+    });
   }, []);
 
   // Elapsed-time ticker while loading
