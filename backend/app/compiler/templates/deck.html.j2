@@ -47,6 +47,14 @@
   ">↩ Restart</button>
 </div>
 
+<!-- Slide counter: positioned between ← and → by JS after Reveal init -->
+<div id="sl-counter" style="
+  position:fixed; z-index:35; pointer-events:none;
+  font-size:11px; font-family:monospace;
+  color:rgba(255,255,255,0.45); line-height:1;
+  white-space:nowrap;
+"></div>
+
 <div class="reveal">
   <div class="slides">
     {% for slide_html in slides_html %}{{ slide_html | safe }}{% endfor %}
@@ -141,8 +149,7 @@
 
   Reveal.initialize({
     hash: true,
-    slideNumber: 'c/t',
-    showSlideNumber: 'all',
+    slideNumber: false,   // we render our own counter between the arrows
     transition: '{{ meta.transition.value }}',
     plugins: [ RevealNotes ],
   });
@@ -151,6 +158,39 @@
   Reveal.on('ready', scaleAll);
   Reveal.on('slidechanged', scaleAll);
   Reveal.on('resize', scaleAll);
+
+  // ---- Custom slide counter positioned between ← and → arrows ----
+  var slCounter = document.getElementById('sl-counter');
+
+  function updateCounter() {
+    if (!slCounter) return;
+    var idx = Reveal.getIndices();
+    var total = Reveal.getTotalSlides();
+    slCounter.textContent = (idx.h + 1) + ' / ' + total;
+    positionCounter();
+  }
+
+  function positionCounter() {
+    if (!slCounter) return;
+    var leftBtn  = document.querySelector('.reveal .controls .navigate-left');
+    var rightBtn = document.querySelector('.reveal .controls .navigate-right');
+    if (!leftBtn || !rightBtn) return;
+
+    var lr = leftBtn.getBoundingClientRect();
+    var rr = rightBtn.getBoundingClientRect();
+
+    // Centre the counter horizontally between the two arrows,
+    // and vertically align with their mid-point.
+    var cx = (lr.right + rr.left) / 2;
+    var cy = (lr.top  + lr.bottom) / 2;
+
+    slCounter.style.left = (cx - slCounter.offsetWidth  / 2) + 'px';
+    slCounter.style.top  = (cy - slCounter.offsetHeight / 2) + 'px';
+  }
+
+  Reveal.on('ready',        updateCounter);
+  Reveal.on('slidechanged', updateCounter);
+  Reveal.on('resize',       positionCounter);
 
   // External navigation via postMessage (used by the editor sidebar)
   window.addEventListener('message', function(e) {
