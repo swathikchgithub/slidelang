@@ -152,6 +152,13 @@
   Reveal.on('slidechanged', scaleAll);
   Reveal.on('resize', scaleAll);
 
+  // External navigation via postMessage (used by the editor sidebar)
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'sl-navigate' && typeof e.data.index === 'number') {
+      Reveal.slide(e.data.index);
+    }
+  });
+
   // End-of-deck indicator
   var endBanner = document.getElementById('sl-end-banner');
   function updateEndBanner() {

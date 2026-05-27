@@ -40,6 +40,7 @@ export default function DeckPage() {
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // ---------------------------------------------------------------------------
   // Initial load
@@ -80,7 +81,14 @@ export default function DeckPage() {
   // Jump Monaco editor to a specific slide by id
   // ---------------------------------------------------------------------------
 
-  const jumpToSlide = useCallback((slideId: string) => {
+  const jumpToSlide = useCallback((slideId: string, slideIndex: number) => {
+    // 1. Navigate the preview iframe to the clicked slide (cross-origin via postMessage)
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "sl-navigate", index: slideIndex },
+      "*",
+    );
+
+    // 2. Jump Monaco editor cursor to that slide's definition
     const editor = editorRef.current;
     if (!editor) return;
     const model = editor.getModel();
@@ -93,7 +101,6 @@ export default function DeckPage() {
     editor.revealLineInCenter(pos.lineNumber);
     editor.setPosition(pos);
     editor.focus();
-    // Show editor if it was hidden
     setShowEditor(true);
   }, []);
 
@@ -195,7 +202,7 @@ export default function DeckPage() {
               slides.map((slide, i) => (
                 <button
                   key={slide.id}
-                  onClick={() => jumpToSlide(slide.id)}
+                  onClick={() => jumpToSlide(slide.id, i)}
                   title={`Jump to slide "${slide.id}" in editor`}
                   className="w-full text-left px-3 py-2 flex items-start gap-2 hover:bg-zinc-800 group transition-colors"
                 >
@@ -239,6 +246,7 @@ export default function DeckPage() {
             {iframeUrl && (
               <iframe
                 key={iframeUrl}
+                ref={iframeRef}
                 src={iframeUrl}
                 className="w-full h-full border-0"
                 title="deck preview"
