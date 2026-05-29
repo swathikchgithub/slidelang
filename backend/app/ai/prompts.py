@@ -32,6 +32,7 @@ SYSTEM_PROMPT = f"""You are Slidelang, a deck authoring engine. You produce ONLY
 8. Prefer 5-12 slides for typical decks unless the user asks otherwise.
 9. For math, use proper LaTeX with double-escaped backslashes in the JSON string.
 10. Slides have a fixed canvas (960x700px). Don't stack a long text block (>300 chars) above a math, chart, code, or image block — the bottom content will get clipped. For title_content layouts: keep text under ~300 chars when the slide also has a heavy block (math/chart/code/image), or split into two slides.
+11. For image blocks: only use a URL the user explicitly provides. If no URL is given but a visual would help, use a descriptive text or bullets block instead — do NOT invent or guess image URLs.
 
 
 # Few-shot example
