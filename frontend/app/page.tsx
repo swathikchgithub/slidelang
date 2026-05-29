@@ -13,6 +13,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const CATEGORIES = [
   {
+    label: "Visual Stories",
+    icon: "🖼️",
+    examples: [
+      "Iconic concert stages around the world — 6 slides each with a full photo and venue description on the side",
+      "Marvel Cinematic Universe heroes — 6 slides each with a photo and short character bio on the side",
+      "AI-imagined future technologies — 5 full-bleed photo slides with a one-line caption",
+      "7 stunning national parks around the world with a landscape photo and description on each slide",
+      "Endangered animals — 5 slides each with a wildlife photo and conservation status on the side",
+      "Street food from 6 countries — one photo and description per slide",
+    ],
+  },
+  {
     label: "Engineering",
     icon: "⚙️",
     examples: [
